@@ -8,7 +8,7 @@
 !=================================================================================================================
  module mpas_atmphys_packages
  use mpas_kind_types
- use mpas_derived_types,only : mpas_pool_type,mpas_io_context_type,MPAS_LOG_ERR
+ use mpas_derived_types,only : mpas_pool_type,mpas_io_context_type,MPAS_LOG_ERR,MPAS_LOG_WARN
  use mpas_pool_routines,only : mpas_pool_get_config,mpas_pool_get_package
  use mpas_log,only : mpas_log_write
 
@@ -38,6 +38,8 @@
  character(len=StrKIND),pointer:: config_pbl_scheme
  character(len=StrKIND),pointer:: config_lsm_scheme
  logical,pointer:: mp_kessler_in,mp_thompson_in,mp_thompson_aers_in,mp_wsm6_in
+ character(len=StrKIND),pointer:: config_thompson_rates
+ logical,pointer:: mp_rates_in
  logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_ntiedtke_in
  logical,pointer:: bl_mynn_in,bl_ysu_in
  logical,pointer:: sf_noahmp_in
@@ -99,6 +101,42 @@
  call mpas_log_write('    mp_thompson_in          = $l', logicArgs=(/mp_thompson_in/))
  call mpas_log_write('    mp_thompson_aers_in     = $l', logicArgs=(/mp_thompson_aers_in/))
  call mpas_log_write('    mp_wsm6_in              = $l', logicArgs=(/mp_wsm6_in/))
+
+!--- initialization of the package for output of Thompson process rates and phase-change heating:
+
+ call mpas_pool_get_config(configs,'config_thompson_rates',config_thompson_rates)
+
+ nullify(mp_rates_in)
+ call mpas_pool_get_package(packages,'mp_rates_inActive',mp_rates_in)
+
+ if(.not.associated(mp_rates_in)) then
+    call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
+    call mpas_log_write('* Error while setting up package for Thompson process rates in atmosphere core.',     messageType=MPAS_LOG_ERR)
+    call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
+    ierr = 1
+    return
+ endif
+
+ if(trim(config_thompson_rates) /= 'off'      .and. &
+    trim(config_thompson_rates) /= 'snapshot' .and. &
+    trim(config_thompson_rates) /= 'accumulate') then
+    call mpas_log_write('config_thompson_rates = '//trim(config_thompson_rates)// &
+                        ' is not off, snapshot, or accumulate.',messageType=MPAS_LOG_ERR)
+    ierr = 1
+    return
+ endif
+
+ mp_rates_in = .false.
+ if(trim(config_thompson_rates) /= 'off') then
+    if(mp_thompson_in .or. mp_thompson_aers_in) then
+       mp_rates_in = .true.
+    else
+       call mpas_log_write('config_thompson_rates is ignored: it requires mp_thompson or mp_thompson_aerosols.', &
+                           messageType=MPAS_LOG_WARN)
+    endif
+ endif
+
+ call mpas_log_write('    mp_rates_in             = $l', logicArgs=(/mp_rates_in/))
 
 !--- initialization of all packages for parameterizations of convection:
 

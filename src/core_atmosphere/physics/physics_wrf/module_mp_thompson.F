@@ -89,6 +89,13 @@
       LOGICAL, PARAMETER, PRIVATE:: homogIce = .true.
 
       INTEGER, PARAMETER, PRIVATE:: IFDRY = 0
+
+!..Output of process rates and phase-change heating (MPAS option config_thompson_rates).
+!.. Slots 1:n_mp_rates hold mp_rates1d (process rates, kg/kg/s or #/kg/s) and slots
+!.. n_mp_rates+1:n_thompson_rates hold l_rates1d (phase-change heating, K/s), in the same
+!.. order as the constituents of the var_array mp_rates in Registry.xml.
+      INTEGER, PARAMETER, PUBLIC:: n_mp_rates = 67, n_lh_rates = 26
+      INTEGER, PARAMETER, PUBLIC:: n_thompson_rates = n_mp_rates + n_lh_rates
       REAL, PARAMETER, PRIVATE:: T_0 = 273.15
       REAL, PARAMETER, PRIVATE:: PI = 3.1415926536
 
@@ -1009,7 +1016,7 @@
                               re_cloud, re_ice, re_snow,              &
                               has_reqc, has_reqi, has_reqs,           &
 #if defined(mpas)
-                              ntc,muc,                                &
+                              ntc,muc,mprates,                        &
 #endif
                               ids,ide, jds,jde, kds,kde, &             ! domain dims
                               ims,ime, jms,jme, kms,kme, &             ! memory dims
@@ -1040,6 +1047,10 @@
 #if defined(mpas)
       REAL, DIMENSION(ims:ime, jms:jme), INTENT(IN):: &
                           ntc,muc
+!..Time integral over dt_in of each process rate and phase-change heating rate, added to
+!.. the input values so that the caller can sum over microphysics sub-steps:
+      REAL, DIMENSION(ims:ime, kms:kme, jms:jme, n_thompson_rates), OPTIONAL, INTENT(INOUT):: &
+                          mprates
       REAL, DIMENSION(ims:ime, kms:kme, jms:jme), INTENT(INOUT), OPTIONAL:: &
                           refl_10cm
 #else
@@ -1056,6 +1067,8 @@
                           t1d, p1d, w1d, dz1d, rho, dBZ
       REAL, DIMENSION(kts:kte):: re_qc1d, re_qi1d, re_qs1d
       REAL, DIMENSION(kts:kte):: rainprod1d, evapprod1d
+      REAL, DIMENSION(kts:kte,n_mp_rates):: mp_rates1d
+      REAL, DIMENSION(kts:kte,n_lh_rates):: l_rates1d
       REAL, DIMENSION(its:ite, jts:jte):: pcp_ra, pcp_sn, pcp_gr, pcp_ic
       REAL:: dt, pptrain, pptsnow, pptgraul, pptice
       REAL:: qc_max, qr_max, qs_max, qi_max, qg_max, ni_max, nr_max
@@ -1149,6 +1162,8 @@
             rainprod1d(k) = 0.
             evapprod1d(k) = 0.
          enddo
+         mp_rates1d = 0.
+         l_rates1d = 0.
 
          do k = kts, kte
             t1d(k) = th(i,k,j)*pii(i,k,j)
@@ -1185,7 +1200,20 @@
                       nr1d, nc1d, nwfa1d, nifa1d, t1d, p1d, w1d, dz1d,  &
                       pptrain, pptsnow, pptgraul, pptice,               &
                       rainprod1d, evapprod1d,                           &
+                      mp_rates1d, l_rates1d,                            &
                       kts, kte, dt, i, j)
+
+#if defined(mpas)
+         IF ( PRESENT(mprates) ) THEN
+            do k = kts, kte
+               mprates(i,k,j,1:n_mp_rates) = mprates(i,k,j,1:n_mp_rates)   &
+                                           + mp_rates1d(k,:)*dt_in
+               mprates(i,k,j,n_mp_rates+1:n_thompson_rates) =               &
+                     mprates(i,k,j,n_mp_rates+1:n_thompson_rates)           &
+                                           + l_rates1d(k,:)*dt_in
+            enddo
+         ENDIF
+#endif
 
          pcp_ra(i,j) = pptrain
          pcp_sn(i,j) = pptsnow
@@ -1401,6 +1429,7 @@
                           nr1d, nc1d, nwfa1d, nifa1d, t1d, p1d, w1d, dzq, &
                           pptrain, pptsnow, pptgraul, pptice,             &
                           rainprod, evapprod,                             &
+                          mp_rates3d, l_rates3d,                          &
                           kts, kte, dt, ii, jj)
 
       implicit none
@@ -1415,6 +1444,10 @@
       REAL, INTENT(IN):: dt
       REAL, DIMENSION(kts:kte), INTENT(INOUT):: &
                           rainprod, evapprod
+!..Process rates (kg/kg/s, #/kg/s) and phase-change heating rates (K/s); slots as in
+!.. the WRF Pl_write option. Zeroed by the caller for each column.
+      REAL, DIMENSION(kts:kte,n_mp_rates), INTENT(INOUT):: mp_rates3d
+      REAL, DIMENSION(kts:kte,n_lh_rates), INTENT(INOUT):: l_rates3d
 
 !..Local variables
       REAL, DIMENSION(kts:kte):: tten, qvten, qcten, qiten, &
@@ -2675,6 +2708,73 @@
          orho = 1./rho(k)
          lfus2 = lsub - lvap(k)
 
+!..Process rates for output, after the mass-conservation limiters above.
+      if (temp(k).lt.T_0) then
+
+      mp_rates3d(k,1) = pni_iau(k)*orho
+      mp_rates3d(k,2) = pni_ide(k)*orho
+      mp_rates3d(k,3) = pni_iha(k)*orho
+      mp_rates3d(k,4) = pni_ihm(k)*orho
+      mp_rates3d(k,5) = pni_inu(k)*orho
+      mp_rates3d(k,6) = pni_rci(k)*orho
+      mp_rates3d(k,7) = pni_rfz(k)*orho
+      mp_rates3d(k,8) = pni_sci(k)*orho
+      mp_rates3d(k,9) = pni_wfz(k)*orho
+      mp_rates3d(k,12) = pnr_rcg(k)*orho
+      mp_rates3d(k,13) = pnr_rci(k)*orho
+      mp_rates3d(k,15) = pnr_rcs(k)*orho
+      mp_rates3d(k,16) = pnr_rfz(k)*orho
+      mp_rates3d(k,18) = prg_gcw(k)*orho
+      mp_rates3d(k,19) = prg_gde(k)*orho
+      mp_rates3d(k,20) = prg_ihm(k)*orho
+      mp_rates3d(k,22) = prg_rcg(k)*orho
+      mp_rates3d(k,23) = prg_rci(k)*orho
+      mp_rates3d(k,24) = prg_rcs(k)*orho
+      mp_rates3d(k,25) = prg_rfz(k)*orho
+      mp_rates3d(k,26) = prg_scw(k)*orho
+      mp_rates3d(k,27) = pri_ide(k)*orho
+      mp_rates3d(k,28) = pri_iha(k)*orho
+      mp_rates3d(k,29) = pri_ihm(k)*orho
+      mp_rates3d(k,30) = pri_inu(k)*orho
+      mp_rates3d(k,31) = pri_rci(k)*orho
+      mp_rates3d(k,32) = pri_rfz(k)*orho
+      mp_rates3d(k,33) = pri_wfz(k)*orho
+      mp_rates3d(k,36) = prr_rcg(k)*orho
+      mp_rates3d(k,37) = prr_rci(k)*orho
+      mp_rates3d(k,38) = prr_rcs(k)*orho
+      mp_rates3d(k,41) = prs_iau(k)*orho
+      mp_rates3d(k,42) = prs_ide(k)*orho
+      mp_rates3d(k,43) = prs_ihm(k)*orho
+      mp_rates3d(k,45) = prs_rcs(k)*orho
+      mp_rates3d(k,46) = prs_sci(k)*orho
+      mp_rates3d(k,47) = prs_scw(k)*orho
+      mp_rates3d(k,48) = prs_sde(k)*orho
+
+      else
+
+      mp_rates3d(k,10) = pnr_gml(k)*orho
+      mp_rates3d(k,11) = pnr_rcg(k)*orho
+      mp_rates3d(k,14) = pnr_rcs(k)*orho
+      mp_rates3d(k,17) = pnr_sml(k)*orho
+      mp_rates3d(k,21) = prg_rcg(k)*orho
+      mp_rates3d(k,34) = prr_gml(k)*orho
+      mp_rates3d(k,35) = prr_rcg(k)*orho
+      mp_rates3d(k,39) = prr_sml(k)*orho
+      mp_rates3d(k,40) = prr_rcs(k)*orho
+      mp_rates3d(k,44) = prs_rcs(k)*orho
+
+      end if
+
+      mp_rates3d(k,49) = pnc_gcw(k)*orho
+      mp_rates3d(k,50) = pnc_rcw(k)*orho
+      mp_rates3d(k,51) = pnc_scw(k)*orho
+      mp_rates3d(k,52) = pnc_wau(k)*orho
+      mp_rates3d(k,54) = pnr_rcr(k)*orho
+      mp_rates3d(k,56) = pnr_wau(k)*orho
+      mp_rates3d(k,57) = prr_rcw(k)*orho
+      mp_rates3d(k,58) = prr_wau(k)*orho
+      
+
 !..Aerosol number tendency
          if (is_aerosol_aware) then
             nwfaten(k) = nwfaten(k) - (pna_rca(k) + pna_sca(k)          &
@@ -2832,6 +2932,39 @@
                       + lsub*ocp(k)*(prs_sde(k) + prg_gde(k)) &
                        )*orho * (1-IFDRY)
          endif
+
+!..Phase-change heating for output; terms sum to the tten increment above.
+      if (temp(k).lt.T_0) then
+
+      l_rates3d(k,1) = lsub*ocp(k)*pri_inu(k)*orho*(1-IFDRY)
+      l_rates3d(k,2) = lsub*ocp(k)*pri_ide(k)*orho*(1-IFDRY)
+      l_rates3d(k,3) = lsub*ocp(k)*prs_ide(k)*orho*(1-IFDRY)
+      l_rates3d(k,4) = lsub*ocp(k)*prs_sde(k)*orho*(1-IFDRY)
+      l_rates3d(k,5) = lsub*ocp(k)*prg_gde(k)*orho*(1-IFDRY)
+      l_rates3d(k,6) = lsub*ocp(k)*pri_iha(k)*orho*(1-IFDRY)
+
+      l_rates3d(k,7) = lfus2*ocp(k)*pri_wfz(k)*orho*(1-IFDRY)
+      l_rates3d(k,8) = lfus2*ocp(k)*pri_rfz(k)*orho*(1-IFDRY)
+      l_rates3d(k,9) = lfus2*ocp(k)*prg_rfz(k)*orho*(1-IFDRY)
+      l_rates3d(k,10) = lfus2*ocp(k)*prs_scw(k)*orho*(1-IFDRY)
+      l_rates3d(k,11) = lfus2*ocp(k)*prg_scw(k)*orho*(1-IFDRY)
+      l_rates3d(k,12) = lfus2*ocp(k)*prg_gcw(k)*orho*(1-IFDRY)
+      l_rates3d(k,13) = lfus2*ocp(k)*prg_rcs(k)*orho*(1-IFDRY)
+      l_rates3d(k,14) = lfus2*ocp(k)*prs_rcs(k)*orho*(1-IFDRY)
+      l_rates3d(k,15) = lfus2*ocp(k)*prr_rci(k)*orho*(1-IFDRY)
+      l_rates3d(k,16) = lfus2*ocp(k)*prg_rcg(k)*orho*(1-IFDRY)
+
+      else
+
+      l_rates3d(k,17) = -1.*lfus*ocp(k)*prr_sml(k)*orho*(1-IFDRY)
+      l_rates3d(k,18) = -1.*lfus*ocp(k)*prr_gml(k)*orho*(1-IFDRY)
+      l_rates3d(k,19) = -1.*lfus*ocp(k)*prr_rcg(k)*orho*(1-IFDRY)
+      l_rates3d(k,20) = -1.*lfus*ocp(k)*prr_rcs(k)*orho*(1-IFDRY)
+
+      l_rates3d(k,21) = lsub*ocp(k)*prs_sde(k)*orho*(1-IFDRY)
+      l_rates3d(k,22) = lsub*ocp(k)*prg_gde(k)*orho*(1-IFDRY)
+
+      endif
 
       enddo
 
@@ -3113,11 +3246,14 @@
 
 !+---+-----------------------------------------------------------------+
 
+          mp_rates3d(k,60) = prw_vcd(k)
+          mp_rates3d(k,53) = pnc_wcd(k)
           qvten(k) = qvten(k) - prw_vcd(k)
           qcten(k) = qcten(k) + prw_vcd(k)
           ncten(k) = ncten(k) + pnc_wcd(k)
           nwfaten(k) = nwfaten(k) - pnc_wcd(k)
           tten(k) = tten(k) + lvap(k)*ocp(k)*prw_vcd(k)*(1-IFDRY)
+          l_rates3d(k,23) = lvap(k)*ocp(k)*prw_vcd(k)*(1-IFDRY)
           rc(k) = MAX(R1, (qc1d(k) + DT*qcten(k))*rho(k))
           if (rc(k).eq.R1) L_qc(k) = .false.
           nc(k) = MAX(2., MIN((nc1d(k)+ncten(k)*DT)*rho(k), Nt_c_max))
@@ -3196,11 +3332,14 @@
           pnr_rev(k) = MIN(DBLE(nr(k)*0.99*orho*odts),                  &   ! RAIN2M
                        prv_rev(k) * nr(k)/rr(k))
 
+          mp_rates3d(k,55) = pnr_rev(k)
+          mp_rates3d(k,59) = prv_rev(k)
           qrten(k) = qrten(k) - prv_rev(k)
           qvten(k) = qvten(k) + prv_rev(k)
           nrten(k) = nrten(k) - pnr_rev(k)
           nwfaten(k) = nwfaten(k) + pnr_rev(k)
           tten(k) = tten(k) - lvap(k)*ocp(k)*prv_rev(k)*(1-IFDRY)
+          l_rates3d(k,24) = -1.*lvap(k)*ocp(k)*prv_rev(k)*(1-IFDRY)
 
           rr(k) = MAX(R1, (qr1d(k) + DT*qrten(k))*rho(k))
           qv(k) = MAX(1.E-10, qv1d(k) + DT*qvten(k))
@@ -3417,6 +3556,7 @@
          odzq = 1./dzq(k)
          orho = 1./rho(k)
          qrten(k) = qrten(k) - sed_r(k)*odzq*onstep(1)*orho
+         mp_rates3d(k,64) = mp_rates3d(k,64) - sed_r(k)*odzq*onstep(1)*orho
          nrten(k) = nrten(k) - sed_n(k)*odzq*onstep(1)*orho
          rr(k) = MAX(R1, rr(k) - sed_r(k)*odzq*DT*onstep(1))
          nr(k) = MAX(R2, nr(k) - sed_n(k)*odzq*DT*onstep(1))
@@ -3424,6 +3564,8 @@
             odzq = 1./dzq(k)
             orho = 1./rho(k)
             qrten(k) = qrten(k) + (sed_r(k+1)-sed_r(k))                 &
+                                               *odzq*onstep(1)*orho
+            mp_rates3d(k,64) = mp_rates3d(k,64) + (sed_r(k+1)-sed_r(k))  &
                                                *odzq*onstep(1)*orho
             nrten(k) = nrten(k) + (sed_n(k+1)-sed_n(k))                 &
                                                *odzq*onstep(1)*orho
@@ -3449,6 +3591,7 @@
          odzq = 1./dzq(k)
          orho = 1./rho(k)
          qcten(k) = qcten(k) + (sed_c(k+1)-sed_c(k)) *odzq*orho
+         mp_rates3d(k,63) = (sed_c(k+1)-sed_c(k)) *odzq*orho
          ncten(k) = ncten(k) + (sed_n(k+1)-sed_n(k)) *odzq*orho
          rc(k) = MAX(R1, rc(k) + (sed_c(k+1)-sed_c(k)) *odzq*DT)
          nc(k) = MAX(10., nc(k) + (sed_n(k+1)-sed_n(k)) *odzq*DT)
@@ -3468,6 +3611,7 @@
          odzq = 1./dzq(k)
          orho = 1./rho(k)
          qiten(k) = qiten(k) - sed_i(k)*odzq*onstep(2)*orho
+         mp_rates3d(k,65) = mp_rates3d(k,65) - sed_i(k)*odzq*onstep(2)*orho
          niten(k) = niten(k) - sed_n(k)*odzq*onstep(2)*orho
          ri(k) = MAX(R1, ri(k) - sed_i(k)*odzq*DT*onstep(2))
          ni(k) = MAX(R2, ni(k) - sed_n(k)*odzq*DT*onstep(2))
@@ -3475,6 +3619,8 @@
             odzq = 1./dzq(k)
             orho = 1./rho(k)
             qiten(k) = qiten(k) + (sed_i(k+1)-sed_i(k))                 &
+                                               *odzq*onstep(2)*orho
+            mp_rates3d(k,65) = mp_rates3d(k,65) + (sed_i(k+1)-sed_i(k))  &
                                                *odzq*onstep(2)*orho
             niten(k) = niten(k) + (sed_n(k+1)-sed_n(k))                 &
                                                *odzq*onstep(2)*orho
@@ -3501,11 +3647,14 @@
          odzq = 1./dzq(k)
          orho = 1./rho(k)
          qsten(k) = qsten(k) - sed_s(k)*odzq*onstep(3)*orho
+         mp_rates3d(k,66) = mp_rates3d(k,66) - sed_s(k)*odzq*onstep(3)*orho
          rs(k) = MAX(R1, rs(k) - sed_s(k)*odzq*DT*onstep(3))
          do k = ksed1(3), kts, -1
             odzq = 1./dzq(k)
             orho = 1./rho(k)
             qsten(k) = qsten(k) + (sed_s(k+1)-sed_s(k))                 &
+                                               *odzq*onstep(3)*orho
+            mp_rates3d(k,66) = mp_rates3d(k,66) + (sed_s(k+1)-sed_s(k))  &
                                                *odzq*onstep(3)*orho
             rs(k) = MAX(R1, rs(k) + (sed_s(k+1)-sed_s(k)) &
                                            *odzq*DT*onstep(3))
@@ -3528,11 +3677,14 @@
          odzq = 1./dzq(k)
          orho = 1./rho(k)
          qgten(k) = qgten(k) - sed_g(k)*odzq*onstep(4)*orho
+         mp_rates3d(k,67) = mp_rates3d(k,67) - sed_g(k)*odzq*onstep(4)*orho
          rg(k) = MAX(R1, rg(k) - sed_g(k)*odzq*DT*onstep(4))
          do k = ksed1(4), kts, -1
             odzq = 1./dzq(k)
             orho = 1./rho(k)
             qgten(k) = qgten(k) + (sed_g(k+1)-sed_g(k))                 &
+                                               *odzq*onstep(4)*orho
+            mp_rates3d(k,67) = mp_rates3d(k,67) + (sed_g(k+1)-sed_g(k))  &
                                                *odzq*onstep(4)*orho
             rg(k) = MAX(R1, rg(k) + (sed_g(k+1)-sed_g(k)) &
                                            *odzq*DT*onstep(4))
@@ -3556,6 +3708,8 @@
           qiten(k) = qiten(k) - xri*odt
           niten(k) = -ni1d(k)*odt
           tten(k) = tten(k) - lfus*ocp(k)*xri*odt*(1-IFDRY)
+          l_rates3d(k,25) = -1.*lfus*ocp(k)*xri*odt*(1-IFDRY)
+          mp_rates3d(k,61) = xri*odt
          endif
 
          xrc = MAX(0.0, qc1d(k) + qcten(k)*DT)
@@ -3567,6 +3721,8 @@
           qcten(k) = qcten(k) - xrc*odt
           ncten(k) = ncten(k) - xnc*odt
           tten(k) = tten(k) + lfus2*ocp(k)*xrc*odt*(1-IFDRY)
+          l_rates3d(k,26) = lfus2*ocp(k)*xrc*odt*(1-IFDRY)
+          mp_rates3d(k,62) = xrc*odt
          endif
       enddo
       endif

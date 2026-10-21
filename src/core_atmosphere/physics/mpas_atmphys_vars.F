@@ -286,6 +286,12 @@
     reice_p,          &!
     resnow_p           !
 
+!... for output of Thompson process rates and phase-change heating (config_thompson_rates); allocated
+!    only when the package mp_rates_in is active. mprates_p holds the time integral of each rate over all
+!    microphysics sub-steps of one model time-step:
+ real(kind=RKIND),dimension(:,:,:,:),allocatable:: &
+    mprates_p          !
+
 !... for Thompson cloud microphysics parameterization, including aerosol-aware option:
  real(kind=RKIND),dimension(:,:),allocatable:: &
     ntc_p,            &!

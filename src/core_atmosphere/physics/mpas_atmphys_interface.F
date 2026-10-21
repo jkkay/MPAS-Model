@@ -21,6 +21,7 @@
 
  use mpas_atmphys_constants
  use mpas_atmphys_vars
+ use mpas_derived_types, only: MPAS_LOG_CRIT
  use mpas_timer, only: mpas_timer_start, mpas_timer_stop
 
  implicit none
@@ -861,6 +862,11 @@ end subroutine pre_microphysics
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
  integer,pointer:: mp_top_level
 
+!local pointers for output of Thompson process rates and phase-change heating:
+ character(len=StrKIND),pointer:: thompson_rates
+ integer,pointer:: index_first_rate,index_last_rate
+ real(kind=RKIND),dimension(:,:,:),pointer:: mp_rates
+
 !local variables:
  integer:: icount
  integer:: i,k,j
@@ -1027,6 +1033,43 @@ end subroutine pre_microphysics
              enddo
              enddo
              enddo
+
+             !process rates and phase-change heating: mprates_p holds the time integral of each rate over
+             !the model time-step (all n_microp sub-steps). It is allocated only if config_thompson_rates is
+             !not 'off'. The constituents of the var_array mp_rates are ordered as the slots in mp_gt_driver
+             !(module_mp_thompson.F).
+             if(allocated(mprates_p)) then
+                call mpas_pool_get_config(configs,'config_thompson_rates',thompson_rates)
+                call mpas_pool_get_array(diag_physics,'mp_rates',mp_rates)
+                call mpas_pool_get_dimension(diag_physics,'index_pni_iau_n',index_first_rate)
+                call mpas_pool_get_dimension(diag_physics,'index_l_xrc'    ,index_last_rate )
+                if(index_first_rate /= 1 .or. index_last_rate /= size(mprates_p,4) .or. &
+                   size(mp_rates,1) /= size(mprates_p,4)) then
+                   call mpas_log_write('mp_rates in Registry.xml does not match the slots in module_mp_thompson.', &
+                                       messageType=MPAS_LOG_CRIT)
+                endif
+
+                if(trim(thompson_rates) == 'accumulate') then
+                   do j = jts,jte
+                   do i = its,ite
+                   do k = kts,mp_top_level
+                      mp_rates(:,k,i) = mp_rates(:,k,i) + mprates_p(i,k,j,:)
+                   enddo
+                   enddo
+                   enddo
+                else
+                   do j = jts,jte
+                   do i = its,ite
+                   do k = kts,mp_top_level
+                      mp_rates(:,k,i) = mprates_p(i,k,j,:) / dt_dyn
+                   enddo
+                   do k = mp_top_level+1,kte
+                      mp_rates(:,k,i) = 0._RKIND
+                   enddo
+                   enddo
+                   enddo
+                endif
+             endif
 
              mp3_select: select case(trim(mp_scheme))
                 case("mp_thompson_aerosols")

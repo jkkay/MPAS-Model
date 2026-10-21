@@ -466,6 +466,7 @@
         <packages>
                 <package name="mp_kessler_in" description="parameterization of kessler microphysics."/>
                 <package name="mp_thompson_in" description="parameterization of Thompson cloud microphysics."/>
+                <package name="mp_rates_in" description="output of Thompson process rates and phase-change heating."/>
                 <package name="mp_thompson_aers_in" description="parameterization of aerosol-aware Thompson cloud microphysics."/>
                 <package name="mp_wsm6_in" description="parameterization of WSM6 cloud microphysics."/>
                 <package name="cu_grell_freitas_in" description="parameterization of Grell-Freitas convection."/>
@@ -693,6 +694,7 @@
 #ifdef DO_PHYSICS
 			<var name="rainprod"/>
 			<var name="evapprod"/>
+			<var_array name="mp_rates"/>
 			<var name="re_cloud"/>
 			<var name="re_ice"/>
 			<var name="re_snow"/>
@@ -2313,6 +2315,11 @@
                      description="height above which to exclude microphysics tendencies"
                      possible_values="Positive reals"/>
 
+                <nml_option name="config_thompson_rates" type="character" default_value="off" in_defaults="false"
+                     units="-"
+                     description="output of Thompson process rates and phase-change heating (var_array mp_rates). snapshot: mean rate over each model time-step; accumulate: time integral since the start of the run (difference two output times and divide by the interval for a mean rate)"
+                     possible_values="`off',`snapshot',`accumulate'"/>
+
                 <nml_option name="config_radtlw_interval" type="character" default_value="00:30:00"
                      units="-"
                      description="time interval between calls to parameterization of long-wave radiation"
@@ -2632,6 +2639,380 @@
                 <var name="evapprod" type="real" dimensions="nVertLevels nCells Time" units="s^{-1}"
                      description="rain evaporation rate"
                      packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
+
+                <var_array name="mp_rates" type="real" dimensions="nVertLevels nCells Time" packages="mp_rates_in">
+                        <var name="pni_iau_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pni_iau_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pni_ide_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pni_ide_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pni_iha_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pni_iha_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pni_ihm_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pni_ihm_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pni_inu_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pni_inu_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pni_rci_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pni_rci_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pni_rfz_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pni_rfz_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pni_sci_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pni_sci_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pni_wfz_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pni_wfz_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_gml_p" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_gml_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_rcg_p" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_rcg_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_rcg_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_rcg_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_rci_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_rci_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_rcs_p" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_rcs_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_rcs_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_rcs_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_rfz_n" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_rfz_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_sml_p" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_sml_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prg_gcw_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prg_gcw_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prg_gde_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prg_gde_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prg_ihm_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prg_ihm_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prg_rcg_p" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prg_rcg_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prg_rcg_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prg_rcg_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prg_rci_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prg_rci_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prg_rcs_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prg_rcs_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prg_rfz_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prg_rfz_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prg_scw_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prg_scw_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pri_ide_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate pri_ide_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pri_iha_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate pri_iha_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pri_ihm_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate pri_ihm_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pri_inu_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate pri_inu_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pri_rci_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate pri_rci_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pri_rfz_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate pri_rfz_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pri_wfz_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate pri_wfz_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prr_gml_p" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prr_gml_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prr_rcg_p" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prr_rcg_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prr_rcg_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prr_rcg_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prr_rci_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prr_rci_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prr_rcs_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prr_rcs_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prr_sml_p" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prr_sml_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prr_rcs_p" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prr_rcs_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prs_iau_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prs_iau_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prs_ide_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prs_ide_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prs_ihm_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prs_ihm_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prs_rcs_p" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prs_rcs_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prs_rcs_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prs_rcs_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prs_sci_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prs_sci_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prs_scw_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prs_scw_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prs_sde_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prs_sde_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnc_gcw_w" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnc_gcw_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnc_rcw_w" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnc_rcw_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnc_scw_w" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnc_scw_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnc_wau_w" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnc_wau_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnc_wcd_w" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnc_wcd_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_rcr_w" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_rcr_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_rev_w" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_rev_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pnr_wau_w" array_group="mprt" units="# kg^{-1} s^{-1}"
+                             description="Thompson process rate pnr_wau_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prr_rcw_w" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prr_rcw_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prr_wau_w" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prr_wau_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prv_rev_w" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prv_rev_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prw_vcd_w" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prw_vcd_w (all T); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prw_iml_p" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prw_iml_p (T >= 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pri_whm_n" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate pri_whm_n (T < 0 C); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prc_sed" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prc_sed (sedimentation flux divergence); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prr_sed" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prr_sed (sedimentation flux divergence); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="pri_sed" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate pri_sed (sedimentation flux divergence); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prs_sed" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prs_sed (sedimentation flux divergence); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="prg_sed" array_group="mprt" units="kg kg^{-1} s^{-1}"
+                             description="Thompson process rate prg_sed (sedimentation flux divergence); time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_pri_inu" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from pri_inu; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_pri_ide" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from pri_ide; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prs_ide" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prs_ide; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prs_sde_b0" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prs_sde_b0; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prg_gde_b0" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prg_gde_b0; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_pri_iha" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from pri_iha; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_pri_wfz" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from pri_wfz; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_pri_rfz" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from pri_rfz; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prg_rfz" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prg_rfz; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prs_scw" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prs_scw; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prg_scw" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prg_scw; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prg_gcw" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prg_gcw; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prg_rcs" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prg_rcs; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prs_rcs" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prs_rcs; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prr_rci" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prr_rci; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prg_rcg" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prg_rcg; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prr_sml" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prr_sml; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prr_gml" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prr_gml; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prr_rcg" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prr_rcg; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prr_rcs" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prr_rcs; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prs_sde_a0" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prs_sde_a0; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prg_gde_a0" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prg_gde_a0; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prw_vcd" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prw_vcd; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_prv_rev" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from prv_rev; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_xri" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from xri; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+
+                        <var name="l_xrc" array_group="mprt" units="K s^{-1}"
+                             description="Thompson phase-change heating rate from xrc; time integral (units times s) if config_thompson_rates=accumulate"
+                             packages="mp_rates_in"/>
+                </var_array>
 
                 <var name="re_cloud" type="real" dimensions="nVertLevels nCells Time" units="m"
                      description="effective radius of cloud water droplets"

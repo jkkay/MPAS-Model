@@ -103,10 +103,12 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
+ character(len=StrKIND),pointer:: thompson_rates
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_thompson_rates',thompson_rates)
 
 !sounding variables:
  if(.not.allocated(rho_p) ) allocate(rho_p(ims:ime,kms:kme,jms:jme) )
@@ -155,6 +157,11 @@
           if(.not.allocated(muc_p)) allocate(muc_p(ims:ime,jms:jme))
           if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
+
+          !process rates and phase-change heating:
+          if(trim(thompson_rates) /= 'off') then
+             if(.not.allocated(mprates_p)) allocate(mprates_p(ims:ime,kms:kme,jms:jme,n_thompson_rates))
+          endif
 
           microp3_select: select case(trim(microp_scheme))
              case("mp_thompson_aerosols")
@@ -236,6 +243,9 @@
           if(allocated(muc_p)) deallocate(muc_p)
           if(allocated(ni_p) ) deallocate(ni_p )
           if(allocated(nr_p) ) deallocate(nr_p )
+
+          !process rates and phase-change heating:
+          if(allocated(mprates_p)) deallocate(mprates_p)
 
           microp3_select: select case(trim(microp_scheme))
              case("mp_thompson_aerosols")
@@ -386,6 +396,9 @@
 
     case ("mp_thompson")
        call mpas_timer_start('mp_thompson')
+       !mprates_p accumulates over the n_microp sub-steps; it is unallocated (absent in mp_gt_driver)
+       !when config_thompson_rates = 'off':
+       if(allocated(mprates_p)) mprates_p(its:ite,:,:,:) = 0._RKIND
        istep = 1
        do while (istep .le. n_microp)
        call mp_gt_driver( &
@@ -399,7 +412,7 @@
                   sr        = sr_p        , rainprod   = rainprod_p   , evapprod   = evapprod_p   , &
                   re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
-                  ntc       = ntc_p       , muc        = muc_p                                    , &
+                  ntc       = ntc_p       , muc        = muc_p        , mprates    = mprates_p    , &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
@@ -410,6 +423,9 @@
 
     case ("mp_thompson_aerosols")
        call mpas_timer_start('mp_thompson_aerosols')
+       !mprates_p accumulates over the n_microp sub-steps; it is unallocated (absent in mp_gt_driver)
+       !when config_thompson_rates = 'off':
+       if(allocated(mprates_p)) mprates_p(its:ite,:,:,:) = 0._RKIND
        istep = 1
        do while (istep .le. n_microp)
        call mp_gt_driver( &
@@ -425,7 +441,7 @@
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
                   nc        = nc_p        , nifa       = nifa_p       , nwfa       = nwfa_p       , &
                   nifa2d    = nifa2d_p    , nwfa2d     = nwfa2d_p     , ntc        = ntc_p        , &
-                  muc       = muc_p       ,                                                         &
+                  muc       = muc_p       , mprates    = mprates_p    ,                               &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
